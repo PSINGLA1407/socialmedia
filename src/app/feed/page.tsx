@@ -1,238 +1,229 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react';
 import styled from 'styled-components';
-import { FaHeart } from 'react-icons/fa';
 import { supabase } from '../../lib/supabase';
+import { FaHeart, FaRegCalendarAlt } from 'react-icons/fa';
 
 interface Post {
-  id: string;
-  user_id: string;
+  id: number;
   caption: string;
-  likes: number;
-  created_at: string;
   image: string | null;
+  created_at: string;
+  user_id: string;
+  likes: number;
 }
 
-// Helper function to validate image URL
-const isValidImageUrl = (url: string | null): boolean => {
-  if (!url) return false;
-  // Check if it's a timestamp that was incorrectly saved as an image URL
-  if (url.match(/^\d{4}-\d{2}-\d{2}/)) return false;
-  // Check if it's a valid Supabase storage URL
-  return url.includes('supabase.co/storage');
-};
-
-const FeedWrapper = styled.div`
-  max-width: 480px;
-  margin: 0 auto;
-  padding: 32px 0 96px 0;
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-`;
-
-const PostCard = styled.div`
-  background: #fff;
-  border-radius: 18px;
-  box-shadow: 0 4px 24px rgba(99,102,241,0.08);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-`;
-
-const PostHeader = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 16px 0 16px;
-`;
-
-const Avatar = styled.img`
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid #6366f1;
-`;
-
-const Username = styled.div`
-  font-weight: 600;
-  color: #22223b;
-`;
-
-const PostImage = styled.img`
-  width: 100%;
-  max-height: 400px;
-  object-fit: cover;
-  margin: 12px 0;
-`;
-
-const PostFooter = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px 16px 16px;
-`;
-
-const LikeButton = styled.button`
-  background: none;
-  border: none;
-  color: #e11d48;
-  font-size: 1.5rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  transition: transform 0.1s;
-  &:active {
-    transform: scale(1.2);
-  }
-`;
-
-const LikeCount = styled.span`
-  color: #6b7280;
-  font-size: 0.9rem;
-  font-weight: 500;
-  min-width: 45px;
-`;
-
-const Caption = styled.div`
-  color: #444;
-  font-size: 1rem;
-  flex: 1;
-`;
-
-const LoadingWrapper = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 200px;
-  font-size: 1.1rem;
-  color: #6366f1;
-`;
-
-export default function FeedPage() {
+export default function Feed() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function fetchPosts() {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const { data, error } = await supabase
-          .from('posts')
-          .select('*')
-          .order('created_at', { ascending: false });
-        
-        if (error) throw error;
-
-        // Clean up invalid image URLs
-        const cleanedPosts = await Promise.all((data || []).map(async (post) => {
-          // If the image field contains a timestamp, set it to null
-          if (post.image && post.image.match(/^\d{4}-\d{2}-\d{2}/)) {
-            const { error: updateError } = await supabase
-              .from('posts')
-              .update({ image: null })
-              .eq('id', post.id);
-            
-            if (updateError) {
-              console.error('Error cleaning up post:', updateError);
-            }
-            return { ...post, image: null };
-          }
-          return post;
-        }));
-        
-        setPosts(cleanedPosts);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch posts');
-      } finally {
-        setLoading(false);
-      }
+  // Helper function to ensure correct image URL format
+  const getCorrectImageUrl = (url: string | null) => {
+    if (!url) return null;
+    if (url.includes('supabase.co/storage/v1/object/public')) {
+      return url;
     }
+    return url.replace(
+      'storage.googleapis.com',
+      'supabase.co/storage/v1/object/public'
+    );
+  };
+
+  const fetchPosts = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('posts')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      // Transform the image URLs in the posts
+      const postsWithCorrectUrls = (data || []).map(post => ({
+        ...post,
+        image: post.image ? getCorrectImageUrl(post.image) : null
+      }));
+
+      console.log('Posts with corrected URLs:', postsWithCorrectUrls);
+      setPosts(postsWithCorrectUrls);
+    } catch (err) {
+      console.error('Error fetching posts:', err);
+      setError('Failed to fetch posts');
+      setPosts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchPosts();
   }, []);
 
-  // --- CLAP FEATURE ---
-  const handleLike = async (postId: string) => {
-    // Optimistically update UI
-    setPosts(posts =>
-      posts.map(post =>
-        post.id === postId ? { ...post, likes: (post.likes || 0) + 1 } : post
-      )
-    );
-    // Update in DB (atomic increment)
-    const { error } = await supabase.rpc('increment_likes', { post_id: postId });
-    if (error) {
-      // Optionally, revert UI or show error
-      console.error('Error updating likes:', error);
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'Invalid date';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (err) {
+      return 'Invalid date';
     }
   };
 
   if (loading) {
-    return (
-      <FeedWrapper>
-        <LoadingWrapper>Loading posts...</LoadingWrapper>
-      </FeedWrapper>
-    );
+    return <LoadingContainer>Loading posts...</LoadingContainer>;
   }
 
   if (error) {
-    return (
-      <FeedWrapper>
-        <LoadingWrapper style={{ color: '#e11d48' }}>
-          Error: {error}
-        </LoadingWrapper>
-      </FeedWrapper>
-    );
+    return <ErrorContainer>{error}</ErrorContainer>;
   }
 
   return (
-    <FeedWrapper>
+    <FeedContainer>
       {posts.length === 0 ? (
-        <LoadingWrapper>No posts yet. Be the first to post!</LoadingWrapper>
+        <EmptyState>No posts yet. Be the first to post!</EmptyState>
       ) : (
-        posts.map(post => {
-          console.log(`Rendering post ${post.id}:`, {
-            image: post.image,
-            hasImage: !!post.image,
-            isValid: isValidImageUrl(post.image)
-          });
+        posts.map((post) => {
+          // Log each post's image URL for debugging
+          console.log(`Post ${post.id} image URL:`, post.image);
           
           return (
             <PostCard key={post.id}>
-              <PostHeader>
-                <Username>{post.user_id}</Username>
-              </PostHeader>
-              {post.image && isValidImageUrl(post.image) && (
-                <PostImage 
-                  src={post.image} 
-                  alt="Post content" 
-                  onError={(e) => {
-                    console.error('Image failed to load:', post.image);
-                    // Hide broken images
-                    (e.target as HTMLImageElement).style.display = 'none';
-                  }}
-                />
+              {post.image && (
+                <PostImageContainer>
+                  <PostImage
+                    src={post.image}
+                    alt={`Post ${post.id}`}
+                    onError={(e) => {
+                      console.error(`Error loading image for post ${post.id}:`, post.image);
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                    }}
+                    loading="lazy"
+                  />
+                </PostImageContainer>
               )}
-              <PostFooter>
-                <LikeButton 
-                  aria-label={`Like this post (${post.likes || 0} likes)`}
-                  onClick={() => handleLike(post.id)}
-                >
-                  <FaHeart />
-                </LikeButton>
-                <LikeCount>
-                  {post.likes || 0} {post.likes === 1 ? 'like' : 'likes'}
-                </LikeCount>
-                <Caption>{post.caption}</Caption>
-              </PostFooter>
+              <PostContent>
+                <Caption>{post.caption || 'No caption'}</Caption>
+                <PostMeta>
+                  <LikeCount>
+                    <FaHeart style={{color:'#ff1744'}}/>
+                    {post.likes || 0}
+                  </LikeCount>
+                  <PostDate>
+                    <FaRegCalendarAlt style={{color:'#0070f3'}}/>
+                    {formatDate(post.created_at)}
+                  </PostDate>
+                </PostMeta>
+              </PostContent>
             </PostCard>
           );
         })
       )}
-    </FeedWrapper>
+    </FeedContainer>
   );
-} 
+}
+
+const FeedContainer = styled.div`
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 2.5rem 1rem;
+  background: linear-gradient(135deg, #0f2027 0%, #2c5364 100%);
+  min-height: 100vh;
+  border-radius: 24px;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.25);
+`;
+
+const LoadingContainer = styled.div`
+  text-align: center;
+  padding: 2rem;
+`;
+
+const ErrorContainer = styled.div`
+  color: red;
+  text-align: center;
+  padding: 2rem;
+`;
+
+const EmptyState = styled.div`
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+`;
+
+const PostCard = styled.div`
+  background: rgba(255,255,255,0.13);
+  border-radius: 18px;
+  box-shadow: 0 4px 24px 0 rgba(31, 38, 135, 0.15);
+  margin-bottom: 2rem;
+  overflow: hidden;
+  border: 1.5px solid rgba(255,255,255,0.18);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: box-shadow 0.2s, transform 0.2s;
+  &:hover {
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.25);
+    transform: translateY(-2px) scale(1.01);
+  }
+`;
+
+const PostImageContainer = styled.div`
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+  background: rgba(0, 0, 0, 0.05);
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const PostImage = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+`;
+
+const PostContent = styled.div`
+  padding: 1.5rem 1.2rem 1.2rem 1.2rem;
+`;
+
+const Caption = styled.p`
+  margin: 0 0 1.2rem 0;
+  font-size: 1.15rem;
+  line-height: 1.6;
+  color: var(--foreground);
+  font-weight: 500;
+`;
+
+const PostMeta = styled.div`
+  display: flex;
+  justify-content: flex-start;
+  gap: 1.5rem;
+  color: #0070f3;
+  font-size: 1rem;
+  align-items: center;
+`;
+
+const LikeCount = styled.span`
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+`;
+
+const PostDate = styled.span`
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+`; 

@@ -1,190 +1,46 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import styled from 'styled-components';
 import { supabase } from '../../lib/supabase';
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import { FaImage, FaTimes } from 'react-icons/fa';
-
-const CreatePostContainer = styled.div`
-  max-width: 600px;
-  margin: 2rem auto;
-  padding: 1rem;
-  padding-bottom: 96px;
-`;
-
-const Form = styled.form`
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-`;
-
-const TextArea = styled.textarea`
-  width: 100%;
-  min-height: 150px;
-  padding: 1rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  resize: vertical;
-  font-family: inherit;
-  &:focus {
-    outline: none;
-    border-color: #6366f1;
-    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
-  }
-`;
-
-const ImageUploadContainer = styled.div`
-  position: relative;
-  width: 100%;
-  min-height: 200px;
-  border: 2px dashed #e5e7eb;
-  border-radius: 0.5rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  padding: 2rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  background: #fff;
-  &:hover {
-    border-color: #6366f1;
-    background: #f9fafb;
-  }
-`;
-
-const ImagePreviewContainer = styled.div`
-  position: relative;
-  width: 100%;
-  max-height: 300px;
-  border-radius: 0.5rem;
-  overflow: hidden;
-`;
-
-const ImagePreview = styled.img`
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-`;
-
-const RemoveImageButton = styled.button`
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  background: rgba(0, 0, 0, 0.5);
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background 0.2s;
-  &:hover {
-    background: rgba(0, 0, 0, 0.7);
-  }
-`;
-
-const Button = styled.button`
-  background: #6366f1;
-  color: white;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  &:hover {
-    background: #4f46e5;
-  }
-  &:disabled {
-    background: #a5b4fc;
-    cursor: not-allowed;
-  }
-`;
-
-const Message = styled.div`
-  margin-top: 1rem;
-  color: #10b981;
-  font-weight: 500;
-`;
-
-const ErrorMsg = styled.div`
-  margin-top: 1rem;
-  color: #e11d48;
-  font-weight: 500;
-`;
-
-const LoadingSpinner = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 200px;
-  font-size: 1.1rem;
-  color: #6366f1;
-`;
+import { FaTimes } from 'react-icons/fa';
 
 export default function CreatePost() {
   const [caption, setCaption] = useState('');
   const [image, setImage] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { data: session, status } = useSession();
   const router = useRouter();
 
-  useEffect(() => {
-    // Debug logging for session
-    console.log('Session status:', status);
-    console.log('Session data:', session);
-
-    // Debug logging for storage bucket
-    const checkBucket = async () => {
-      try {
-        // List all buckets
-        const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
-        console.log('Available buckets:', buckets);
-        if (bucketsError) console.error('Error listing buckets:', bucketsError);
-
-        // Try to get post-images bucket info
-        const { data: files, error: filesError } = await supabase.storage
-          .from('post-images')
-          .list();
-        console.log('Files in post-images:', files);
-        if (filesError) console.error('Error listing files:', filesError);
-      } catch (err) {
-        console.error('Bucket check error:', err);
-      }
-    };
-
-    if (status === 'authenticated') {
-      checkBucket();
-    }
-  }, [session, status]);
-
-  // If not authenticated, redirect to sign in
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/signin');
-    }
-  }, [status, router]);
-
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        setError('Image size should be less than 5MB');
-        return;
+    try {
+      const file = e.target.files?.[0];
+      if (file) {
+        if (file.size > 5 * 1024 * 1024) { // 5MB
+          setError('Image size must be less than 5MB');
+          return;
+        }
+        setImage(file);
+        setError(null); // Clear any previous errors
       }
-      setImage(file);
+    } catch (err) {
+      console.error('Error handling image:', err);
+      setError('Failed to process image');
     }
   };
 
   const removeImage = () => {
-    setImage(null);
+    try {
+      setImage(null);
+      setError(null);
+      // Reset the input if it exists
+      const input = document.getElementById('image-upload') as HTMLInputElement;
+      if (input) {
+        input.value = '';
+      }
+    } catch (err) {
+      console.error('Error removing image:', err);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -194,20 +50,20 @@ export default function CreatePost() {
       setLoading(true);
       setError(null);
 
-      if (!caption) {
+      if (!caption.trim()) {
         throw new Error('Please enter a caption');
       }
 
       let imageUrl = null;
       
       if (image) {
-        // Generate a unique filename using timestamp and original name
-        const timestamp = new Date().getTime();
-        const fileExt = image.name.split('.').pop();
-        const fileName = `${timestamp}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const timestamp = Date.now();
+        const randomString = Math.random().toString(36).substring(2);
+        const fileExt = image.name.split('.').pop() || 'jpg';
+        const fileName = `${timestamp}-${randomString}.${fileExt}`;
         
-        // Upload image to Supabase Storage
-        const { data: uploadData, error: uploadError } = await supabase
+        // Upload the image
+        const { error: uploadError } = await supabase
           .storage
           .from('post-images')
           .upload(fileName, image);
@@ -216,22 +72,29 @@ export default function CreatePost() {
           throw new Error(`Failed to upload image: ${uploadError.message}`);
         }
 
-        // Get the public URL for the uploaded image
-        const { data: { publicUrl } } = supabase
+        // Get the CDN URL for the image
+        const {
+          data: { publicUrl },
+        } = supabase
           .storage
           .from('post-images')
           .getPublicUrl(fileName);
 
-        imageUrl = publicUrl;
-        console.log('Image uploaded successfully:', imageUrl);
+        // Transform the URL to use the direct CDN URL
+        const cdnUrl = publicUrl.replace(
+          'storage.googleapis.com',
+          'supabase.co/storage/v1/object/public'
+        );
+
+        imageUrl = cdnUrl;
+        console.log('Generated image URL:', imageUrl); // For debugging
       }
 
-      // Create post with image URL
       const { error: postError } = await supabase
         .from('posts')
         .insert([
           {
-            caption,
+            caption: caption.trim(),
             image: imageUrl,
             user_id: 'placeholder-user-id',
             likes: 0
@@ -242,33 +105,22 @@ export default function CreatePost() {
         throw new Error(`Failed to create post: ${postError.message}`);
       }
 
-      // Redirect to feed page after successful post
+      // Clear form
+      setCaption('');
+      setImage(null);
+      
+      // Navigate to feed
       router.push('/feed');
       router.refresh();
 
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create post');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create post';
+      setError(errorMessage);
       console.error('Error creating post:', err);
     } finally {
       setLoading(false);
     }
   };
-
-  if (status === 'loading') {
-    return (
-      <CreatePostContainer>
-        <LoadingSpinner>Loading...</LoadingSpinner>
-      </CreatePostContainer>
-    );
-  }
-
-  if (status === 'unauthenticated') {
-    return (
-      <CreatePostContainer>
-        <ErrorMsg>Please sign in to create posts.</ErrorMsg>
-      </CreatePostContainer>
-    );
-  }
 
   return (
     <CreatePostContainer>
@@ -276,14 +128,41 @@ export default function CreatePost() {
       <Form onSubmit={handleSubmit}>
         <TextArea
           value={caption}
-          onChange={(e) => setCaption(e.target.value)}
-          placeholder="What's on your mind? (Optional if uploading an image)"
+          onChange={(e) => {
+            setCaption(e.target.value);
+            if (error && error.includes('caption')) {
+              setError(null);
+            }
+          }}
+          placeholder="What's on your mind?"
+          required
         />
+        
+        <FileInput
+          type="file"
+          onChange={handleImageChange}
+          accept="image/*"
+          id="image-upload"
+        />
+        <FileInputLabel htmlFor="image-upload">
+          Choose an image (optional)
+        </FileInputLabel>
         
         {image && (
           <ImagePreviewContainer>
-            <ImagePreview src={URL.createObjectURL(image)} alt="Preview" />
-            <RemoveImageButton onClick={removeImage} type="button">
+            <ImagePreview 
+              src={URL.createObjectURL(image)} 
+              alt="Preview"
+              onError={() => {
+                setError('Failed to load image preview');
+                setImage(null);
+              }}
+            />
+            <RemoveImageButton 
+              onClick={removeImage} 
+              type="button"
+              aria-label="Remove image"
+            >
               <FaTimes />
             </RemoveImageButton>
           </ImagePreviewContainer>
@@ -291,7 +170,7 @@ export default function CreatePost() {
 
         <Button 
           type="submit" 
-          disabled={loading || !caption}
+          disabled={loading || !caption.trim()}
         >
           {loading ? 'Posting...' : 'Post'}
         </Button>
@@ -299,4 +178,129 @@ export default function CreatePost() {
       {error && <ErrorMsg>{error}</ErrorMsg>}
     </CreatePostContainer>
   );
-} 
+}
+
+const CreatePostContainer = styled.div`
+  max-width: 500px;
+  margin: 3rem auto;
+  padding: 2rem 2.5rem;
+  background: rgba(255,255,255,0.15);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.18);
+  color: var(--foreground);
+`;
+
+const Form = styled.form`
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+`;
+
+const TextArea = styled.textarea`
+  width: 100%;
+  min-height: 120px;
+  padding: 1rem;
+  border: 1.5px solid #0070f3;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.25);
+  color: var(--foreground);
+  font-size: 1.1rem;
+  transition: border 0.2s, box-shadow 0.2s;
+  &:focus {
+    border: 2px solid #0070f3;
+    outline: none;
+    box-shadow: 0 0 0 2px #0070f355;
+  }
+`;
+
+const FileInput = styled.input`
+  display: none;
+`;
+
+const FileInputLabel = styled.label`
+  display: inline-block;
+  padding: 0.7rem 1.2rem;
+  background: linear-gradient(90deg, #0070f3 60%, #00c6ff 100%);
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  transition: background 0.2s;
+  &:hover {
+    background: linear-gradient(90deg, #005bb5 60%, #0070f3 100%);
+  }
+`;
+
+const ImagePreviewContainer = styled.div`
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+  margin: 1rem 0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+`;
+
+const ImagePreview = styled.img`
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+`;
+
+const RemoveImageButton = styled.button`
+  position: absolute;
+  top: 0.3rem;
+  right: 0.3rem;
+  background: #ff1744;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  transition: background 0.2s;
+  &:hover {
+    background: #d50000;
+  }
+`;
+
+const Button = styled.button`
+  padding: 0.8rem 2rem;
+  background: linear-gradient(90deg, #0070f3 60%, #00c6ff 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  box-shadow: 0 2px 8px rgba(0,112,243,0.10);
+  transition: background 0.2s, box-shadow 0.2s;
+  &:hover:not(:disabled) {
+    background: linear-gradient(90deg, #005bb5 60%, #0070f3 100%);
+    box-shadow: 0 4px 16px rgba(0,112,243,0.18);
+  }
+  &:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+  }
+`;
+
+const ErrorMsg = styled.div`
+  color: #ff1744;
+  background: rgba(255,23,68,0.08);
+  border: 1px solid #ff1744;
+  border-radius: 8px;
+  padding: 0.7rem 1rem;
+  margin-top: 1rem;
+  font-weight: 600;
+  text-align: center;
+`; 

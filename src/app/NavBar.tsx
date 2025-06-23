@@ -21,11 +21,6 @@ const NavBar = styled.nav`
   align-items: center;
   padding: 0.5rem 0;
   z-index: 100;
-  @media (min-width: 700px) {
-    top: 0;
-    bottom: unset;
-    box-shadow: 0 2px 16px rgba(0,0,0,0.06);
-  }
 `;
 
 const NavButtonContainer = styled.div<NavButtonProps>`
