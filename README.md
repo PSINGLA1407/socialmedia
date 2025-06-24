@@ -27,7 +27,7 @@ A modern social media platform built with Next.js and Supabase, featuring real-t
    - Secure login and signup functionality
    - Protected routes and API endpoints
    - Session management
-   - ![image](https://github.com/user-attachments/assets/8d72f0ee-095b-4a32-bd26-027e96ac31ec)
+   - ![image](https://github.com/user-attachments/assets/0a27c67e-4e9c-4883-901d-6c6e273bea52)
 
 2. **User Profiles**
    - Customizable user profiles
@@ -38,18 +38,20 @@ A modern social media platform built with Next.js and Supabase, featuring real-t
    - Create posts with text and images
    - Global feed with real-time updates
    - Image upload and storage using Supabase
-     ![image](https://github.com/user-attachments/assets/1e4874fb-66ab-4866-96f7-9ebd4ad3092d)
+     ![image](https://github.com/user-attachments/assets/76a6f1cb-da01-46ba-88eb-674dcf2cd221)
 
 4. **Post Reactions**
    - Like system for posts
    - Multiple likes per user (similar to Medium's Clap)
    - Real-time like count updates
-   - ![image](https://github.com/user-attachments/assets/18fae03d-4c69-4566-baf2-86d3fbe4537f)
+   - ![image](https://github.com/user-attachments/assets/e03b237e-2372-4149-96df-a13322262aeb)
 
 5. **Responsive Design**
    - Mobile-first approach
    - Responsive UI for all screen sizes
    - Modern and clean interface
+   - ![image](https://github.com/user-attachments/assets/b4b9f8d2-ff66-4909-b51b-c29063df60b3)
+
 
 ## 🛠️ Setup Instructions
 
