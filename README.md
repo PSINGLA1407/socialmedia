@@ -15,6 +15,8 @@ A modern social media platform built with Next.js and Supabase, featuring real-t
   - Supabase (PostgreSQL) for database and storage
   - Next.js API Routes
   - NextAuth.js 4.24.11 for authentication
+  - Database View ![image](https://github.com/user-attachments/assets/64c319ce-ad92-467d-b097-10d0b4c699e7)
+
 
 - **Development Tools:**
   - ESLint 9
