@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../../lib/supabase';
 import { signIn } from 'next-auth/react';
-import Link from 'next/link';
+import NextLink from 'next/link';
 
 const Wrapper = styled.div`
   min-height: 100vh;
@@ -84,7 +84,7 @@ const ErrorMsg = styled.div`
   text-align: center;
 `;
 
-const Link = styled.a`
+const StyledAnchor = styled.a`
   color: #6366f1;
   margin-top: 12px;
   display: block;
@@ -177,7 +177,7 @@ const SignInLink = styled.p`
   font-size: 0.95rem;
 `;
 
-const StyledLink = styled(Link)`
+const NavigationLink = styled(NextLink)`
   color: ${props => props.theme.primary};
   text-decoration: none;
   font-weight: 600;
@@ -266,7 +266,7 @@ export default function SignUpPage() {
 
         <SignInLink>
           Already have an account?{' '}
-          <StyledLink href="/auth/signin">Sign in</StyledLink>
+          <NavigationLink href="/auth/signin">Sign in</NavigationLink>
         </SignInLink>
       </AuthCard>
     </PageContainer>

@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
-import Link from 'next/link';
+import NextLink from 'next/link';
 
 const Wrapper = styled.div`
   min-height: 100vh;
@@ -85,7 +85,7 @@ const ErrorMsg = styled.div`
   font-size: 1rem;
 `;
 
-const StyledLink = styled(Link)`
+const NavigationLink = styled(NextLink)`
   color: ${props => props.theme.primary};
   margin-top: 18px;
   display: block;
@@ -155,9 +155,9 @@ export default function SignInPage() {
           </SignInButton>
         </form>
         {error && <ErrorMsg>{error}</ErrorMsg>}
-        <StyledLink href="/auth/signup">
+        <NavigationLink href="/auth/signup">
           Don&apos;t have an account? Sign up
-        </StyledLink>
+        </NavigationLink>
       </Card>
     </Wrapper>
   );
