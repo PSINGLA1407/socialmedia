@@ -3,52 +3,60 @@ import styled from 'styled-components';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
+import Link from 'next/link';
 
 const Wrapper = styled.div`
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(120deg, #f8fafc 0%, #e0e7ff 100%);
+  background: ${props => props.theme.background};
 `;
 
 const Card = styled.div`
-  background: #fff;
+  background: ${props => props.theme.cardBg};
   border-radius: 24px;
-  box-shadow: 0 8px 32px rgba(99,102,241,0.12);
+  box-shadow: 0 8px 32px ${props => props.theme.shadowColor};
   padding: 48px 32px;
   display: flex;
   flex-direction: column;
   align-items: center;
   max-width: 350px;
   width: 100%;
+  border: 1px solid ${props => props.theme.border};
 `;
 
 const Title = styled.h1`
-  font-family: 'Segoe UI', 'Roboto', 'Arial', sans-serif;
   font-size: 2rem;
-  color: #22223b;
+  color: ${props => props.theme.text};
   margin-bottom: 24px;
+  font-weight: 600;
 `;
 
 const Input = styled.input`
   width: 100%;
   padding: 12px;
   margin-bottom: 16px;
-  border: 1px solid #d1d5db;
+  border: 1px solid ${props => props.theme.border};
   border-radius: 8px;
   font-size: 1rem;
-  background: #f3f4f6;
-  transition: border 0.2s;
+  background: ${props => props.theme.inputBg};
+  color: ${props => props.theme.text};
+  transition: all 0.2s ease;
+  
   &:focus {
-    border: 1.5px solid #6366f1;
+    border: 1.5px solid ${props => props.theme.primary};
     outline: none;
+  }
+
+  &::placeholder {
+    color: ${props => props.theme.textSecondary};
   }
 `;
 
 const SignInButton = styled.button`
-  background: linear-gradient(90deg, #6366f1 0%, #60a5fa 100%);
-  color: #fff;
+  background: ${props => props.theme.primary};
+  color: ${props => props.theme.buttonText};
   border: none;
   border-radius: 12px;
   padding: 14px 0;
@@ -57,26 +65,39 @@ const SignInButton = styled.button`
   font-weight: 600;
   margin-top: 8px;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(99,102,241,0.08);
-  transition: background 0.2s;
+  transition: all 0.2s ease;
+  
   &:hover {
-    background: linear-gradient(90deg, #4f46e5 0%, #2563eb 100%);
+    background: ${props => props.theme.primaryHover};
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    background: ${props => props.theme.disabledBg};
+    cursor: not-allowed;
+    transform: none;
   }
 `;
 
 const ErrorMsg = styled.div`
-  color: #e11d48;
+  color: ${props => props.theme.error};
   margin-top: 12px;
   font-size: 1rem;
 `;
 
-const Link = styled.a`
-  color: #6366f1;
+const StyledLink = styled(Link)`
+  color: ${props => props.theme.primary};
   margin-top: 18px;
   display: block;
   text-align: center;
   cursor: pointer;
-  text-decoration: underline;
+  text-decoration: none;
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: ${props => props.theme.primaryHover};
+    text-decoration: underline;
+  }
 `;
 
 export default function SignInPage() {
@@ -88,20 +109,25 @@ export default function SignInPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
+    try {
+      setLoading(true);
+      setError('');
+      
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      });
 
-    const result = await signIn('credentials', {
-      redirect: false,
-      email,
-      password,
-    });
-
-    if (result?.error) {
-      setError('Invalid email or password');
+      if (result?.error) {
+        setError('Invalid email or password');
+      } else {
+        router.push('/feed');
+      }
+    } catch (err) {
+      setError('An error occurred. Please try again.');
+    } finally {
       setLoading(false);
-    } else {
-      router.push('/feed');
     }
   };
 
@@ -129,7 +155,9 @@ export default function SignInPage() {
           </SignInButton>
         </form>
         {error && <ErrorMsg>{error}</ErrorMsg>}
-        <Link href="/auth/signup">Don&apos;t have an account? Sign up</Link>
+        <StyledLink href="/auth/signup">
+          Don&apos;t have an account? Sign up
+        </StyledLink>
       </Card>
     </Wrapper>
   );

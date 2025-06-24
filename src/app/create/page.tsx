@@ -1,45 +1,47 @@
 "use client";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import styled from 'styled-components';
 import { supabase } from '../../lib/supabase';
 import { FaTimes } from 'react-icons/fa';
+import { useSession } from 'next-auth/react';
 
 export default function CreatePost() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [caption, setCaption] = useState('');
   const [image, setImage] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/auth/signin?callbackUrl=/create');
+    }
+  }, [status, router]);
+
+  if (status === 'loading') {
+    return <LoadingContainer>Loading...</LoadingContainer>;
+  }
+
+  if (!session) {
+    return null;
+  }
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
       const file = e.target.files?.[0];
       if (file) {
-        if (file.size > 5 * 1024 * 1024) { // 5MB
+        if (file.size > 5 * 1024 * 1024) {
           setError('Image size must be less than 5MB');
           return;
         }
         setImage(file);
-        setError(null); // Clear any previous errors
+        setError(null);
       }
     } catch (err) {
       console.error('Error handling image:', err);
       setError('Failed to process image');
-    }
-  };
-
-  const removeImage = () => {
-    try {
-      setImage(null);
-      setError(null);
-      // Reset the input if it exists
-      const input = document.getElementById('image-upload') as HTMLInputElement;
-      if (input) {
-        input.value = '';
-      }
-    } catch (err) {
-      console.error('Error removing image:', err);
     }
   };
 
@@ -54,6 +56,10 @@ export default function CreatePost() {
         throw new Error('Please enter a caption');
       }
 
+      if (!session?.user?.id) {
+        throw new Error('You must be logged in to create a post');
+      }
+
       let imageUrl = null;
       
       if (image) {
@@ -62,7 +68,6 @@ export default function CreatePost() {
         const fileExt = image.name.split('.').pop() || 'jpg';
         const fileName = `${timestamp}-${randomString}.${fileExt}`;
         
-        // Upload the image
         const { error: uploadError } = await supabase
           .storage
           .from('post-images')
@@ -72,7 +77,6 @@ export default function CreatePost() {
           throw new Error(`Failed to upload image: ${uploadError.message}`);
         }
 
-        // Get the CDN URL for the image
         const {
           data: { publicUrl },
         } = supabase
@@ -80,14 +84,7 @@ export default function CreatePost() {
           .from('post-images')
           .getPublicUrl(fileName);
 
-        // Transform the URL to use the direct CDN URL
-        const cdnUrl = publicUrl.replace(
-          'storage.googleapis.com',
-          'supabase.co/storage/v1/object/public'
-        );
-
-        imageUrl = cdnUrl;
-        console.log('Generated image URL:', imageUrl); // For debugging
+        imageUrl = publicUrl;
       }
 
       const { error: postError } = await supabase
@@ -96,7 +93,7 @@ export default function CreatePost() {
           {
             caption: caption.trim(),
             image: imageUrl,
-            user_id: 'placeholder-user-id',
+            user_id: session.user.id,
             likes: 0
           }
         ]);
@@ -105,11 +102,6 @@ export default function CreatePost() {
         throw new Error(`Failed to create post: ${postError.message}`);
       }
 
-      // Clear form
-      setCaption('');
-      setImage(null);
-      
-      // Navigate to feed
       router.push('/feed');
       router.refresh();
 
@@ -123,97 +115,175 @@ export default function CreatePost() {
   };
 
   return (
-    <CreatePostContainer>
-      <h1>Create a New Post</h1>
-      <Form onSubmit={handleSubmit}>
-        <TextArea
-          value={caption}
-          onChange={(e) => {
-            setCaption(e.target.value);
-            if (error && error.includes('caption')) {
-              setError(null);
-            }
-          }}
-          placeholder="What's on your mind?"
-          required
-        />
-        
-        <FileInput
-          type="file"
-          onChange={handleImageChange}
-          accept="image/*"
-          id="image-upload"
-        />
-        <FileInputLabel htmlFor="image-upload">
-          Choose an image (optional)
-        </FileInputLabel>
-        
-        {image && (
-          <ImagePreviewContainer>
-            <ImagePreview 
-              src={URL.createObjectURL(image)} 
-              alt="Preview"
-              onError={() => {
-                setError('Failed to load image preview');
-                setImage(null);
-              }}
-            />
-            <RemoveImageButton 
-              onClick={removeImage} 
-              type="button"
-              aria-label="Remove image"
-            >
-              <FaTimes />
-            </RemoveImageButton>
-          </ImagePreviewContainer>
-        )}
+    <PageContainer>
+      <CreatePostContainer>
+        <Header>
+          <Title>Create New Post</Title>
+        </Header>
 
-        <Button 
-          type="submit" 
-          disabled={loading || !caption.trim()}
-        >
-          {loading ? 'Posting...' : 'Post'}
-        </Button>
-      </Form>
-      {error && <ErrorMsg>{error}</ErrorMsg>}
-    </CreatePostContainer>
+        <Form onSubmit={handleSubmit}>
+          <UserInfo>
+            <UserAvatar 
+              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${session.user.email}`}
+              alt={session.user.name || 'Profile'} 
+            />
+            <UserName>{session.user.name}</UserName>
+          </UserInfo>
+
+          <TextArea
+            value={caption}
+            onChange={(e) => {
+              setCaption(e.target.value);
+              if (error && error.includes('caption')) {
+                setError(null);
+              }
+            }}
+            placeholder="What's on your mind?"
+            required
+          />
+          
+          <MediaSection>
+            <FileInput
+              type="file"
+              onChange={handleImageChange}
+              accept="image/*"
+              id="image-upload"
+            />
+            <FileInputLabel htmlFor="image-upload">
+              Choose an image
+            </FileInputLabel>
+            
+            {image && (
+              <ImagePreviewContainer>
+                <ImagePreview 
+                  src={URL.createObjectURL(image)} 
+                  alt="Preview" 
+                  onError={() => {
+                    setError('Failed to load image preview');
+                    setImage(null);
+                  }}
+                />
+                <RemoveImageButton 
+                  onClick={() => setImage(null)} 
+                  type="button"
+                  aria-label="Remove image"
+                >
+                  <FaTimes />
+                </RemoveImageButton>
+              </ImagePreviewContainer>
+            )}
+          </MediaSection>
+
+          <ButtonContainer>
+            <CancelButton type="button" onClick={() => router.back()}>
+              Cancel
+            </CancelButton>
+            <SubmitButton 
+              type="submit" 
+              disabled={loading || !caption.trim()}
+            >
+              {loading ? 'Posting...' : 'Post'}
+            </SubmitButton>
+          </ButtonContainer>
+        </Form>
+
+        {error && <ErrorMsg>{error}</ErrorMsg>}
+      </CreatePostContainer>
+    </PageContainer>
   );
 }
 
+const PageContainer = styled.div`
+  min-height: 100vh;
+  padding: 2rem;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  background: ${props => props.theme.pageBackground};
+
+  @media (max-width: 768px) {
+    padding: 1rem;
+  }
+`;
+
 const CreatePostContainer = styled.div`
-  max-width: 500px;
-  margin: 3rem auto;
-  padding: 2rem 2.5rem;
-  background: rgba(255,255,255,0.15);
-  border-radius: 20px;
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255,255,255,0.18);
-  color: var(--foreground);
+  width: 100%;
+  max-width: 700px;
+  background: ${props => props.theme.cardBg};
+  border-radius: 16px;
+  box-shadow: 0 4px 12px ${props => props.theme.shadowColor};
+  overflow: hidden;
+
+  @media (max-width: 768px) {
+    border-radius: 12px;
+  }
+`;
+
+const Header = styled.div`
+  padding: 1.5rem;
+  border-bottom: 1px solid ${props => props.theme.border};
+`;
+
+const Title = styled.h1`
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: ${props => props.theme.text};
+  margin: 0;
 `;
 
 const Form = styled.form`
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  padding: 1.5rem;
+`;
+
+const UserInfo = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`;
+
+const UserAvatar = styled.img`
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid ${props => props.theme.border};
+`;
+
+const UserName = styled.span`
+  font-weight: 600;
+  color: ${props => props.theme.text};
 `;
 
 const TextArea = styled.textarea`
   width: 100%;
-  min-height: 120px;
+  min-height: 150px;
   padding: 1rem;
-  border: 1.5px solid #0070f3;
-  border-radius: 10px;
-  background: rgba(255,255,255,0.25);
-  color: var(--foreground);
-  font-size: 1.1rem;
-  transition: border 0.2s, box-shadow 0.2s;
-  &:focus {
-    border: 2px solid #0070f3;
-    outline: none;
-    box-shadow: 0 0 0 2px #0070f355;
+  border: 1px solid ${props => props.theme.inputBorder};
+  border-radius: 8px;
+  font-size: 1rem;
+  resize: vertical;
+  color: ${props => props.theme.text};
+  background: ${props => props.theme.inputBg};
+  transition: all 0.2s ease;
+  font-family: inherit;
+
+  &::placeholder {
+    color: ${props => props.theme.textSecondary};
   }
+
+  &:focus {
+    outline: none;
+    border-color: ${props => props.theme.primary};
+    background: ${props => props.theme.cardBg};
+  }
+`;
+
+const MediaSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 `;
 
 const FileInput = styled.input`
@@ -221,86 +291,121 @@ const FileInput = styled.input`
 `;
 
 const FileInputLabel = styled.label`
-  display: inline-block;
-  padding: 0.7rem 1.2rem;
-  background: linear-gradient(90deg, #0070f3 60%, #00c6ff 100%);
-  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.5rem;
+  background: ${props => props.theme.primary};
+  color: ${props => props.theme.buttonText};
   border-radius: 8px;
-  cursor: pointer;
   font-weight: 600;
-  margin-bottom: 0.5rem;
-  transition: background 0.2s;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  width: fit-content;
+
   &:hover {
-    background: linear-gradient(90deg, #005bb5 60%, #0070f3 100%);
+    background: ${props => props.theme.primaryHover};
   }
 `;
 
 const ImagePreviewContainer = styled.div`
   position: relative;
   width: 100%;
-  max-width: 320px;
-  margin: 1rem 0;
-  border-radius: 12px;
+  border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  box-shadow: 0 2px 8px ${props => props.theme.shadowColor};
 `;
 
 const ImagePreview = styled.img`
   width: 100%;
   height: auto;
-  border-radius: 12px;
+  display: block;
 `;
 
 const RemoveImageButton = styled.button`
   position: absolute;
-  top: 0.3rem;
-  right: 0.3rem;
-  background: #ff1744;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
   color: white;
   border: none;
-  border-radius: 50%;
-  width: 28px;
-  height: 28px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-  transition: background 0.2s;
+  transition: background 0.2s ease;
+
   &:hover {
-    background: #d50000;
+    background: rgba(0, 0, 0, 0.7);
   }
 `;
 
-const Button = styled.button`
-  padding: 0.8rem 2rem;
-  background: linear-gradient(90deg, #0070f3 60%, #00c6ff 100%);
-  color: white;
-  border: none;
-  border-radius: 10px;
-  font-size: 1.1rem;
-  font-weight: 700;
-  cursor: pointer;
-  margin-top: 0.5rem;
-  box-shadow: 0 2px 8px rgba(0,112,243,0.10);
-  transition: background 0.2s, box-shadow 0.2s;
-  &:hover:not(:disabled) {
-    background: linear-gradient(90deg, #005bb5 60%, #0070f3 100%);
-    box-shadow: 0 4px 16px rgba(0,112,243,0.18);
+const ButtonContainer = styled.div`
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+
+  @media (max-width: 480px) {
+    flex-direction: column;
   }
+`;
+
+const BaseButton = styled.button`
+  padding: 0.75rem 2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex: 1;
+  font-family: inherit;
+
+  @media (max-width: 480px) {
+    width: 100%;
+  }
+`;
+
+const SubmitButton = styled(BaseButton)`
+  background: ${props => props.theme.primary};
+  color: ${props => props.theme.buttonText};
+  border: none;
+
+  &:hover:not(:disabled) {
+    background: ${props => props.theme.primaryHover};
+  }
+
   &:disabled {
-    background: #ccc;
+    background: ${props => props.theme.disabledBg};
     cursor: not-allowed;
   }
 `;
 
+const CancelButton = styled(BaseButton)`
+  background: ${props => props.theme.cardBg};
+  color: ${props => props.theme.text};
+  border: 1px solid ${props => props.theme.border};
+
+  &:hover {
+    background: ${props => props.theme.inputBg};
+  }
+`;
+
 const ErrorMsg = styled.div`
-  color: #ff1744;
-  background: rgba(255,23,68,0.08);
-  border: 1px solid #ff1744;
+  color: ${props => props.theme.error};
+  padding: 1rem;
+  margin: 0 1.5rem 1.5rem;
+  background: ${props => props.theme.errorBg};
   border-radius: 8px;
-  padding: 0.7rem 1rem;
-  margin-top: 1rem;
-  font-weight: 600;
   text-align: center;
+  font-weight: 500;
+`;
+
+const LoadingContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  color: ${props => props.theme.text};
 `; 

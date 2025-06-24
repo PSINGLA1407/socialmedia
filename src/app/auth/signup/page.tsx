@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../../lib/supabase';
 import { signIn } from 'next-auth/react';
+import Link from 'next/link';
 
 const Wrapper = styled.div`
   min-height: 100vh;
@@ -93,6 +94,100 @@ const Link = styled.a`
   font-size: 1rem;
 `;
 
+const PageContainer = styled.div`
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: ${props => props.theme.pageBackground};
+`;
+
+const AuthCard = styled.div`
+  background: ${props => props.theme.cardBg};
+  padding: 2.5rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px ${props => props.theme.shadowColor};
+  width: 100%;
+  max-width: 420px;
+  transition: all 0.3s ease;
+
+  @media (max-width: 480px) {
+    padding: 2rem;
+  }
+`;
+
+const Form = styled.form`
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+`;
+
+const InputGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+`;
+
+const Label = styled.label`
+  color: ${props => props.theme.text};
+  font-weight: 500;
+  font-size: 0.95rem;
+`;
+
+const SubmitButton = styled.button`
+  width: 100%;
+  padding: 1rem;
+  margin-top: 0.5rem;
+  background: ${props => props.theme.primary};
+  color: ${props => props.theme.buttonText};
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+
+  &:hover:not(:disabled) {
+    background: ${props => props.theme.primaryHover};
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    background: ${props => props.theme.disabledBg};
+    cursor: not-allowed;
+  }
+`;
+
+const ErrorMessage = styled.div`
+  color: ${props => props.theme.error};
+  background: ${props => props.theme.errorBg};
+  padding: 0.875rem 1rem;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 500;
+  font-size: 0.95rem;
+`;
+
+const SignInLink = styled.p`
+  margin-top: 2rem;
+  text-align: center;
+  color: ${props => props.theme.text};
+  font-size: 0.95rem;
+`;
+
+const StyledLink = styled(Link)`
+  color: ${props => props.theme.primary};
+  text-decoration: none;
+  font-weight: 600;
+  margin-left: 0.25rem;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
 export default function SignUpPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -133,32 +228,47 @@ export default function SignUpPage() {
   };
 
   return (
-    <Wrapper>
-      <Card>
+    <PageContainer>
+      <AuthCard>
         <Title>Create Account</Title>
         <SubTitle>Sign up to join Future Social</SubTitle>
-        <form onSubmit={handleSubmit} style={{ width: '100%' }}>
-          <Input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            required
-          />
-          <Input
-            type="password"
-            placeholder="Password (min 6 characters)"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            required
-          />
-          <SignUpButton type="submit" disabled={loading}>
-            {loading ? 'Signing up...' : 'Sign Up'}
-          </SignUpButton>
-        </form>
-        {error && <ErrorMsg>{error}</ErrorMsg>}
-        <Link href="/auth/signin">Already have an account? Sign in</Link>
-      </Card>
-    </Wrapper>
+        <Form onSubmit={handleSubmit}>
+          <InputGroup>
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email"
+              required
+            />
+          </InputGroup>
+
+          <InputGroup>
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Choose a password"
+              required
+            />
+          </InputGroup>
+
+          <SubmitButton type="submit" disabled={loading}>
+            {loading ? 'Creating account...' : 'Sign Up'}
+          </SubmitButton>
+
+          {error && <ErrorMessage>{error}</ErrorMessage>}
+        </Form>
+
+        <SignInLink>
+          Already have an account?{' '}
+          <StyledLink href="/auth/signin">Sign in</StyledLink>
+        </SignInLink>
+      </AuthCard>
+    </PageContainer>
   );
 } 

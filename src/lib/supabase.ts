@@ -139,4 +139,32 @@ on posts
 for delete
 to authenticated
 using (auth.uid()::text = user_id);
+
+-- Create profiles table and policies
+create table profiles (
+  id uuid primary key default uuid_generate_v4(),
+  user_id text references auth.users(id) unique not null,
+  bio text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Enable RLS on profiles
+alter table profiles enable row level security;
+
+-- Create policies for profiles
+create policy "Anyone can view profiles"
+on profiles for select
+to anon, authenticated
+using (true);
+
+create policy "Users can create their own profile"
+on profiles for insert
+to authenticated
+with check (auth.uid()::text = user_id);
+
+create policy "Users can update their own profile"
+on profiles for update
+to authenticated
+using (auth.uid()::text = user_id);
 */ 
