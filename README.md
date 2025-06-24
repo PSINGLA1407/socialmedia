@@ -2,6 +2,8 @@
 
 A modern social media platform built with Next.js and Supabase, featuring real-time updates, image sharing, and user interactions.
 
+🌐 **Live Demo:** [https://socialmedia-8t7g-git-main-psingla1407s-projects.vercel.app/feed](https://socialmedia-8t7g-git-main-psingla1407s-projects.vercel.app/feed)
+
 ## 🚀 Technologies Used
 
 - **Frontend:**
