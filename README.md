@@ -33,6 +33,7 @@ A modern social media platform built with Next.js and Supabase, featuring real-t
    - Customizable user profiles
    - Profile picture upload
    - Bio and personal information
+   - ![image](https://github.com/user-attachments/assets/fd95cf6b-494f-4148-a8a8-6819d136fb08)
 
 3. **Post Creation and Feed**
    - Create posts with text and images
