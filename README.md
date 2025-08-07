@@ -1,4 +1,4 @@
-# Future University Social Media Platform
+# Future Social Media Platform
 
 A modern social media platform built with Next.js and Supabase, featuring real-time updates, image sharing, and user interactions.
 
